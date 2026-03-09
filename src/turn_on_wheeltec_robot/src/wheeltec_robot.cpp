@@ -8,6 +8,13 @@ using std::placeholders::_1;
 using namespace std;
 rclcpp::Node::SharedPtr node_handle = nullptr;
 
+namespace {
+bool serial_is_ready(serial::Serial & serial_port)
+{
+  return serial_port.isOpen();
+}
+}
+
 //自动回充使用相关变量
 bool check_AutoCharge_data = false;
 bool charge_set_state = false;
@@ -234,6 +241,12 @@ Function: The speed topic subscription Callback function, according to the subsc
 ***************************************/
 void turn_on_robot::Cmd_Vel_Callback(const geometry_msgs::msg::Twist::SharedPtr ori_twist_aux)
 {
+  if (!serial_is_ready(Stm32_Serial)) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 3000,
+      "Serial port is not open, ignoring /cmd_vel command.");
+    return;
+  }
+
   short  transition;  //intermediate variable //中间变量
 
   Send_Data.tx[0]=FRAME_HEADER; //frame head 0x7B //帧头0X7B
@@ -657,6 +670,12 @@ Function: Read and verify the data sent by the lower computer frame by frame thr
 ***************************************/
 bool turn_on_robot::Get_Sensor_Data_New()
 {
+  if (!serial_is_ready(Stm32_Serial)) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 3000,
+      "Serial port is not open, skipping chassis feedback read.");
+    return false;
+  }
+
   short transition_16=0; //Intermediate variable //中间变量
   uint8_t check=0,check2=0,check3=0, error=1,error2=1,error3=1,Receive_Data_Pr[1]; //Temporary variable to save the data of the lower machine //临时变量，保存下位机数据
   static int count,count2,count3; //Static variable for counting //静态变量，用于计数
@@ -1012,6 +1031,12 @@ Function: Destructor, executed only once and called by the system when an object
 ***************************************/
 turn_on_robot::~turn_on_robot()
 {
+  if (!serial_is_ready(Stm32_Serial)) {
+    RCLCPP_WARN(this->get_logger(), "Serial port was not open during shutdown, skipping stop command.");
+    RCLCPP_INFO(this->get_logger(),"Shutting down");
+    return;
+  }
+
   //Sends the stop motion command to the lower machine before the turn_on_robot object ends
   //对象turn_on_robot结束前向下位机发送停止运动命令
   Send_Data.tx[0]=FRAME_HEADER;
