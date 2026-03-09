@@ -1,0 +1,56 @@
+import os
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    usart_port_name = LaunchConfiguration('usart_port_name')
+    serial_baud_rate = LaunchConfiguration('serial_baud_rate')
+    robot_frame_id = LaunchConfiguration('robot_frame_id')
+    odom_frame_id = LaunchConfiguration('odom_frame_id')
+    gyro_frame_id = LaunchConfiguration('gyro_frame_id')
+    car_mode = LaunchConfiguration('car_mode')
+    ultrasonic_avoid = LaunchConfiguration('ultrasonic_avoid')
+    ranger_avoid_flag = LaunchConfiguration('ranger_avoid_flag')
+    odom_x_scale = LaunchConfiguration('odom_x_scale')
+    odom_y_scale = LaunchConfiguration('odom_y_scale')
+    odom_z_scale_positive = LaunchConfiguration('odom_z_scale_positive')
+    odom_z_scale_negative = LaunchConfiguration('odom_z_scale_negative')
+
+    return LaunchDescription([
+        DeclareLaunchArgument('usart_port_name', default_value='/dev/wheeltec_controller'),
+        DeclareLaunchArgument('serial_baud_rate', default_value='115200'),
+        DeclareLaunchArgument('robot_frame_id', default_value='base_footprint'),
+        DeclareLaunchArgument('odom_frame_id', default_value='odom_combined'),
+        DeclareLaunchArgument('gyro_frame_id', default_value='gyro_link'),
+        DeclareLaunchArgument('car_mode', default_value='mini_mec'),
+        DeclareLaunchArgument('ultrasonic_avoid', default_value='false'),
+        DeclareLaunchArgument('ranger_avoid_flag', default_value='false'),
+        DeclareLaunchArgument('odom_x_scale', default_value='1.0'),
+        DeclareLaunchArgument('odom_y_scale', default_value='1.0'),
+        DeclareLaunchArgument('odom_z_scale_positive', default_value='1.0'),
+        DeclareLaunchArgument('odom_z_scale_negative', default_value='1.0'),
+        Node(
+            package='turn_on_wheeltec_robot',
+            executable='wheeltec_robot_node',
+            name='wheeltec_robot_node',
+            output='screen',
+            parameters=[{
+                'usart_port_name': usart_port_name,
+                'serial_baud_rate': serial_baud_rate,
+                'robot_frame_id': robot_frame_id,
+                'odom_frame_id': odom_frame_id,
+                'gyro_frame_id': gyro_frame_id,
+                'car_mode': car_mode,
+                'ultrasonic_avoid': ultrasonic_avoid,
+                'ranger_avoid_flag': ranger_avoid_flag,
+                'odom_x_scale': odom_x_scale,
+                'odom_y_scale': odom_y_scale,
+                'odom_z_scale_positive': odom_z_scale_positive,
+                'odom_z_scale_negative': odom_z_scale_negative,
+            }],
+        ),
+    ])
