@@ -2,3 +2,6 @@
 build
 install
 log
+
+src/data/cartographer/carto_map/*.db3
+*.bag
