@@ -256,6 +256,12 @@ void turn_on_robot::Cmd_Vel_Callback(const geometry_msgs::msg::Twist::SharedPtr 
   //避障配置
   geometry_msgs::msg::Twist avoid_twist = avoid_obstacle(*ori_twist_aux);
 
+  RCLCPP_INFO_THROTTLE(
+    this->get_logger(), *this->get_clock(), 1000,
+    "Received /cmd_vel: linear.x=%.3f linear.y=%.3f angular.z=%.3f | applied: linear.x=%.3f linear.y=%.3f angular.z=%.3f",
+    ori_twist_aux->linear.x, ori_twist_aux->linear.y, ori_twist_aux->angular.z,
+    avoid_twist.linear.x, avoid_twist.linear.y, avoid_twist.angular.z);
+
   //The target velocity of the X-axis of the robot
   //机器人x轴的目标线速度
   transition=0;
@@ -279,6 +285,11 @@ void turn_on_robot::Cmd_Vel_Callback(const geometry_msgs::msg::Twist::SharedPtr 
 
   Send_Data.tx[9]=Check_Sum(9,SEND_DATA_CHECK); //For the BCC check bits, see the Check_Sum function //BCC校验位，规则参见Check_Sum函数
   Send_Data.tx[10]=FRAME_TAIL; //frame tail 0x7D //帧尾0X7D
+  RCLCPP_INFO_THROTTLE(
+    this->get_logger(), *this->get_clock(), 1000,
+    "Serial cmd bytes: [%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X]",
+    Send_Data.tx[0], Send_Data.tx[1], Send_Data.tx[2], Send_Data.tx[3], Send_Data.tx[4],
+    Send_Data.tx[5], Send_Data.tx[6], Send_Data.tx[7], Send_Data.tx[8], Send_Data.tx[9], Send_Data.tx[10]);
   try
   {
     Stm32_Serial.write(Send_Data.tx,sizeof (Send_Data.tx)); //Sends data to the downloader via serial port //通过串口向下位机发送数据 
@@ -871,6 +882,11 @@ void turn_on_robot::Control()
       Publish_ImuSensor(); //Pub the IMU topic //发布IMU话题    
       Publish_Voltage();   //Pub the topic of power supply voltage //发布电源电压话题
 
+      RCLCPP_INFO_THROTTLE(
+        this->get_logger(), *this->get_clock(), 1000,
+        "Chassis feedback: vel.x=%.3f vel.y=%.3f vel.z=%.3f battery=%.3f",
+        Robot_Vel.X, Robot_Vel.Y, Robot_Vel.Z, Power_voltage);
+
       _Last_Time = _Now; //Record the time and use it to calculate the time interval //记录时间，用于计算时间间隔
       
     }
@@ -921,7 +937,7 @@ turn_on_robot::turn_on_robot():rclcpp::Node ("wheeltec_robot")
   //The private_nh.param() entry parameter corresponds to the initial value of the name of the parameter variable on the parameter server
   //private_nh.param()入口参数分别对应：参数服务器上的名称  参数变量名  初始值
   
-  this->declare_parameter<int>("serial_baud_rate",114200);
+  this->declare_parameter<int>("serial_baud_rate",115200);
   this->declare_parameter<bool>("ranger_avoid_flag",0);
   this->declare_parameter<bool>("ultrasonic_avoid",0);
 
@@ -997,6 +1013,11 @@ turn_on_robot::turn_on_robot():rclcpp::Node ("wheeltec_robot")
   Cmd_Vel_Sub = create_subscription<geometry_msgs::msg::Twist>(
       cmd_vel, 2, std::bind(&turn_on_robot::Cmd_Vel_Callback, this, _1));
 
+  RCLCPP_INFO(
+    this->get_logger(),
+    "wheeltec_robot subscribed velocity topic: %s | serial port target: %s | baud: %d | car_mode: %s",
+    cmd_vel.c_str(), usart_port_name.c_str(), serial_baud_rate, car_mode.c_str());
+
   AvoidFlag_Sub = create_subscription<std_msgs::msg::Bool>(
       "RangerAvoidFlag", 10, std::bind(&turn_on_robot::RangerAvoidFlag_Callback, this, _1));
 
@@ -1017,11 +1038,30 @@ turn_on_robot::turn_on_robot():rclcpp::Node ("wheeltec_robot")
   }
   catch (serial::IOException& e)
   {
-    RCLCPP_ERROR(this->get_logger(),"wheeltec_robot can not open serial port,Please check the serial port cable! "); //If opening the serial port fails, an error message is printed //如果开启串口失败，打印错误信息
+    RCLCPP_ERROR(this->get_logger(),
+      "wheeltec_robot failed to open serial port '%s': %s",
+      usart_port_name.c_str(), e.what()); //If opening the serial port fails, an error message is printed //如果开启串口失败，打印错误信息
+  }
+  catch (const std::exception & e)
+  {
+    RCLCPP_ERROR(this->get_logger(),
+      "wheeltec_robot failed to initialize serial port '%s': %s",
+      usart_port_name.c_str(), e.what());
   } 
   if(Stm32_Serial.isOpen())
   {
     RCLCPP_INFO(this->get_logger(),"wheeltec_robot serial port opened"); //Serial port opened successfully //串口开启成功提示
+
+    auto recharge_msg = std::make_shared<std_msgs::msg::Int8>();
+    recharge_msg->data = 0;
+    Recharge_Flag_Callback(recharge_msg);
+
+    std_msgs::msg::Int8 security_msg;
+    security_msg.data = 0;
+    Security_Callback(security_msg);
+
+    RCLCPP_INFO(this->get_logger(),
+      "wheeltec_robot initialized lower controller state: recharge=0, security=0");
   }
 }
 /**************************************
