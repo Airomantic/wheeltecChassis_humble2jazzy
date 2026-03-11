@@ -1,5 +1,3 @@
-import os
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -26,7 +24,7 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_frame_id', default_value='base_footprint'),
         DeclareLaunchArgument('odom_frame_id', default_value='odom_combined'),
         DeclareLaunchArgument('gyro_frame_id', default_value='gyro_link'),
-        DeclareLaunchArgument('car_mode', default_value='mini_mec'),
+    DeclareLaunchArgument('car_mode', default_value='S100_diff'),
         DeclareLaunchArgument('ultrasonic_avoid', default_value='false'),
         DeclareLaunchArgument('ranger_avoid_flag', default_value='false'),
         DeclareLaunchArgument('odom_x_scale', default_value='1.0'),
